@@ -1,0 +1,11 @@
+{
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "out": true,
+    "node_modules": true,
+    ".tools": true
+  },
+  "go.testFlags": ["-count=1"],
+  "typescript.preferences.importModuleSpecifier": "relative"
+}
+

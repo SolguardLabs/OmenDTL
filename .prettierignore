@@ -1,0 +1,8 @@
+out/
+bin/
+.tools/
+node_modules/
+coverage/
+go.sum
+vulnerability.md
+

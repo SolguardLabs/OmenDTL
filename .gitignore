@@ -1,0 +1,14 @@
+/out/
+/bin/
+/.tools/
+/node_modules/
+/coverage/
+*.exe
+*.test
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.env.*
+vulnerability.md
+
