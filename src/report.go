@@ -16,7 +16,7 @@ type TotalsReport struct {
 }
 
 type OmenReport struct {
-	Lab            string             `json:"lab"`
+	Protocol       string             `json:"protocol"`
 	Scenario       string             `json:"scenario"`
 	NetworkID      string             `json:"network_id"`
 	Clock          int                `json:"clock"`
@@ -43,7 +43,7 @@ type OmenReport struct {
 
 func BuildReport(scenario string, ledger *Ledger, views []LiquidityView, batches []ReservationBatch, settlementRuns []SettlementResult) OmenReport {
 	report := OmenReport{
-		Lab:            "OmenDTL",
+		Protocol:       "OmenDTL",
 		Scenario:       scenario,
 		NetworkID:      ledger.NetworkID,
 		Clock:          ledger.Clock,

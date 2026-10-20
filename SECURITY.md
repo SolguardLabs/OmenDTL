@@ -1,68 +1,44 @@
-# Security Policy
+# Seguridad de OmenDTL
 
-## Modelo De Seguridad
+## Superficies y límites
 
-OmenDTL modela un motor de preasignacion de liquidez para rutas de demanda. El
-sistema asume que los assets, vaults, cuentas operativas y rutas se registran
-en un ledger local determinista. Las operaciones criticas son forecast,
-reserva, actualizacion de demanda, withdrawal operativo y settlement.
+El motor recibe señales de demanda y solicitudes de reserva asociadas a rutas
+registradas. El ledger mantiene activos, cuentas, vaults, ciclos y estados de
+liquidación en una ejecución determinista. La CLI y el cliente de reportes son
+interfaces locales; no gestionan claves ni firman transacciones.
 
-El motor usa cantidades enteras y evita dependencias externas en tiempo de
-ejecucion. La CLI emite reportes JSON reproducibles para que auditores y
-herramientas automaticas puedan comparar estados entre escenarios.
-
-## Invariantes Esperadas
-
-- Los balances de cuentas y vaults no deben ser negativos.
-- Las rutas deben enlazar vaults existentes del mismo asset.
-- Los forecasts deben enlazar una ruta y vaults consistentes.
-- Las reservas deben enlazar forecast, ruta, owner y vaults existentes.
-- Los settlements deben enlazar reservas y rutas existentes.
-- Los withdrawals deben debitar el mismo asset del vault origen.
-- Los ciclos deben referenciar forecasts del mismo ciclo.
-- La contabilidad de forecast debe permanecer no negativa.
-
-## Validaciones Automatizadas
-
-El comando:
-
-```bash
-out/omendtl validate <scenario>
+```mermaid
+flowchart TD
+  I[Entrada CLI] --> V[Validación de escenario y activo]
+  V --> L[Ledger y políticas de ruta]
+  L --> E[Transiciones de vault]
+  E --> R[Reporte JSON]
+  R --> C[Conciliación y pruebas]
+  L --> G[Motor de invariantes]
+  G --> R
 ```
 
-ejecuta el escenario indicado y comprueba las invariantes publicas del reporte.
-La suite TypeScript valida escenarios normales de forecast, reservas,
-actualizaciones de demanda, settlement y ventanas de liquidez.
+## Controles comprobables
 
-## Gestion De Dependencias
+Las cantidades se representan como enteros; los importes negativos se rechazan
+en operaciones de vault. Las rutas requieren vaults existentes y activos
+coincidentes. El motor limita reservas por política, exige ventanas de ciclo
+abiertas y valida enlaces entre previsión, reserva y settlement. Los retiros
+comprueban la liquidez libre observada en el instante de ejecución.
 
-El repositorio usa:
+El reporte publica indicadores de consistencia para balances no negativos,
+enlaces válidos y contabilidad de previsión. Un indicador positivo acredita
+solo la condición que expresa; no reemplaza pruebas de secuencias completas
+ni conciliación externa.
 
-- Go modules para la toolchain Go;
-- `package.json` para scripts Node y dependencias de desarrollo;
-- Dependabot para `gomod`, `npm` y GitHub Actions.
+## Revisión de cambios
 
-## Alcance De Revision
+1. Ejecutar `npm run ci` en una rama aislada.
+2. Comparar el `state_digest` y los importes por activo de escenarios estables.
+3. Revisar cambios de políticas, unidades, redondeos y orden temporal.
+4. Confirmar CI en PR, `main`, `production`, tag y release.
 
-Estan dentro de alcance:
-
-- `src/`;
-- `tests/`;
-- `scripts/`;
-- workflows de CI;
-- documentacion publica.
-
-Quedan fuera de alcance artefactos generados localmente como `out/`,
-`node_modules/`, `.tools/` y cualquier archivo `.env`.
-
-## Formato De Reporte Interno
-
-Los reportes de revision deben incluir:
-
-- escenario y comando usado;
-- digest de estado;
-- invariantes afectadas;
-- impacto economico esperado;
-- pasos de reproduccion;
-- recomendacion tecnica y tests de regresion.
-
+Los reportes técnicos deben indicar revisión, comando, escenario, estado
+inicial, transición observada, importes y expectativa. No incluir secretos,
+credenciales ni datos de terceros en issues públicos. Consulte
+[operación](./docs/operacion.md) para la conciliación diaria.

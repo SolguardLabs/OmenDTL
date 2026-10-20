@@ -24,7 +24,7 @@ func PrintJSON(value interface{}) error {
 
 func DigestReport(report OmenReport) string {
 	type digestable struct {
-		Lab           string
+		Protocol      string
 		Scenario      string
 		NetworkID     string
 		Clock         int
@@ -38,7 +38,7 @@ func DigestReport(report OmenReport) string {
 		Totals        TotalsReport
 	}
 	data, _ := json.Marshal(digestable{
-		Lab:           report.Lab,
+		Protocol:      report.Protocol,
 		Scenario:      report.Scenario,
 		NetworkID:     report.NetworkID,
 		Clock:         report.Clock,
@@ -65,8 +65,8 @@ func sortedCycleIDs(values map[CycleID]*ForecastCycle) []CycleID {
 }
 
 func ValidateReport(report OmenReport) error {
-	if report.Lab != "OmenDTL" {
-		return fmt.Errorf("%w: lab", ErrInvariantViolation)
+	if report.Protocol != "OmenDTL" {
+		return fmt.Errorf("%w: protocol", ErrInvariantViolation)
 	}
 	inv := report.Invariants
 	if !inv.VaultsNonNegative ||

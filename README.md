@@ -1,101 +1,93 @@
 # OmenDTL
 
-![banner](./assets/banner.png)
+![Identidad de OmenDTL](./assets/banner.png)
 
-OmenDTL es un motor local de prediccion de liquidez escrito en Go. El sistema
-preasigna reservas a rutas con demanda esperada, procesa actualizaciones de
-demanda durante ventanas operativas y liquida reservas diferidas contra vaults
-internos.
+OmenDTL coordina liquidez entre vaults mediante previsiones de demanda,
+reservas por ruta y liquidaciones diferidas. Su motor determinista está escrito
+en Go; una CLI emite reportes JSON para operaciones, conciliación y análisis.
+No necesita servicios externos para ejecutar los escenarios incluidos.
 
-El binario no requiere servicios externos. Los tests TypeScript ejecutan la CLI
-y validan el contrato JSON emitido por el motor.
+## Modelo operativo
 
-## Componentes
-
-- `src/amount.go`: cantidades enteras, buckets por asset y utilidades bps.
-- `src/asset.go`: registro de activos, haircuts de forecast y fees.
-- `src/account.go`: cuentas internas, balances y holds operativos.
-- `src/vault.go`: vaults, buffers, liquidez libre, forecast y settlement.
-- `src/route.go`: rutas de demanda, politicas y estado por mercado.
-- `src/demand.go`: senales y actualizaciones de demanda.
-- `src/forecast.go`: ventanas de forecast y compromisos por ruta.
-- `src/reservation.go`: reservas preasignadas a rutas.
-- `src/settlement.go`: lifecycle de settlements diferidos.
-- `src/ledger.go`: estado central y transiciones economicas.
-- `src/allocator.go`: construccion de batches de reserva.
-- `src/planner.go`: vistas observadas, proyectadas y de drenaje.
-- `src/risk.go`: invariantes y metricas de revision.
-- `src/report.go`: salida JSON estable para tooling externo.
-- `src/scenario.go`: escenarios deterministas de auditoria.
-- `src/cli.go`: CLI `omendtl`.
-
-## Requisitos
-
-- Go 1.22 o superior.
-- Node.js 24 o superior.
-
-## Uso
-
-Compilar:
-
-```bash
-node scripts/build.mjs
+```mermaid
+flowchart LR
+  S[Señales de demanda] --> F[Previsión por ruta]
+  F --> C[Compromiso en vault origen]
+  C --> R[Reserva con vencimiento]
+  R --> B[Asignación de cobertura]
+  B --> L[Liquidación]
+  L --> V[Vault destino]
+  F --> U[Actualización de demanda]
+  U --> P[Vista de liquidez]
+  P --> W[Retirada de tesorería]
 ```
 
-Listar escenarios:
+El modelo distingue saldo líquido, compromiso de previsión, reserva asignada,
+deuda de liquidación y buffer mínimo. Cada ruta enlaza vaults del mismo activo;
+el importe de una reserva se expresa en unidades enteras del activo.
+
+## Ejecución
+
+Requisitos: Go 1.22+, Node.js 24+ y npm.
 
 ```bash
-out/omendtl --list
+npm ci
+npm run build
+./out/omendtl --list
+./out/omendtl scenario operator-day > report.json
+npm run inspect -- report.json ousdc
+./out/omendtl validate operator-day
 ```
 
-Ejecutar un escenario:
+En Windows, use `./out/omendtl.exe`. El ejemplo `operator-day` recorre apertura de
+ventana, asignación, actualización y liquidación. El inspector agrupa posiciones
+del activo elegido y calcula cobertura agregada; no modifica el ledger.
+
+## Cálculo económico
+
+Para cada vault, la capacidad operativa observada se calcula como:
+
+```text
+reserva_líquida = max(0, reserva + entradas_pendientes - salidas_pendientes)
+bloqueado = previsión_comprometida + reserva_asignada
+          + deuda_de_liquidación + buffer_mínimo
+liquidez_libre = max(0, reserva_líquida - bloqueado)
+```
+
+Las señales se ponderan por confianza y política de ruta antes de aplicar el
+haircut del activo. El settlement transforma una reserva vencida en deuda,
+debita el vault origen y acredita al destino el importe neto de comisión.
+Consulte [el modelo económico](./docs/modelo-economico.md) para unidades,
+redondeos y un ejemplo numérico.
+
+## Contrato de reporte
+
+La CLI publica `protocol`, `scenario`, `network_id`, `clock` y `state_digest`,
+además de `vaults`, `routes`, `forecasts`, `reservations`, `settlements`,
+`demand_updates`, `withdrawals`, `risk` e `invariants`. El digest permite
+comparar estados completos de la misma revisión; no sustituye la conciliación
+de importes ni identifica una transacción externa.
+
+El cliente `client/report-client.ts` valida importes enteros seguros y resume
+por activo `reserve`, `freeLiquidity`, `exposure`, `minBuffer`,
+`aggregateCoverageBps` y `freeShareBps`. Un resultado `null` en la cobertura
+indica exposición agregada cero, no un cociente infinito.
+
+## Verificación y estructura
 
 ```bash
-out/omendtl scenario operator-day
+npm run ci
 ```
 
-Validar invariantes de un escenario:
+La verificación ejecuta formato Go/Markdown/TypeScript, `go vet`, `go test`,
+compilación y pruebas de integración Node. CI repite la secuencia en Ubuntu y
+Windows. El repositorio separa `src/` (motor), `client/` (lectura de reportes),
+`scripts/` (build e inspección), `tests/` (contratos) y `docs/` (operación).
 
-```bash
-out/omendtl validate settlement
-```
+- [Arquitectura y flujos](./docs/arquitectura.md)
+- [Modelo económico](./docs/modelo-economico.md)
+- [Operación y conciliación](./docs/operacion.md)
+- [Seguridad](./SECURITY.md)
 
-## Tests
-
-```bash
-npm test
-```
-
-La suite compila el binario y ejecuta:
-
-```bash
-node --test --experimental-strip-types "tests/node/*.test.ts"
-```
-
-Los escenarios publicos cubren:
-
-- contrato CLI y salida JSON;
-- ciclos de forecast;
-- preasignacion de reservas;
-- actualizaciones de demanda;
-- liquidacion de reservas diferidas;
-- ventanas de liquidez con withdrawals de tesoreria;
-- ciclo operativo compuesto.
-
-## CI
-
-El workflow de GitHub Actions instala Go y Node.js y ejecuta:
-
-```bash
-bash scripts/ci.sh
-```
-
-El CI valida formato Go, `go vet`, `go test`, build del binario y tests
-TypeScript.
-
-## Estado Del Lab
-
-OmenDTL esta disenado como un repositorio autocontenido de revision tecnica. La
-salida JSON de la CLI es el contrato principal para tests de regresion,
-analisis de escenarios y tooling de auditoria.
-
+La rama `production` y el tag `v1.0.0` identifican la misma revisión que
+`main` en la release `Production 1.0.0`.

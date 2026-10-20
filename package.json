@@ -1,13 +1,15 @@
 {
   "name": "omendtl",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Go liquidity forecast engine with TypeScript integration tests.",
+  "description": "Motor de previsión y liquidación de liquidez por rutas de OmenDTL.",
   "scripts": {
     "build": "node scripts/build.mjs",
     "test": "node scripts/build.mjs && node --test --experimental-strip-types \"tests/node/*.test.ts\"",
-    "ci": "bash scripts/ci.sh",
+    "ci": "npm run format:check && go vet ./... && go test ./... && node scripts/build.mjs && node --test --experimental-strip-types \"tests/node/*.test.ts\"",
+    "format:check": "node scripts/check-format.mjs && prettier --check README.md SECURITY.md docs client scripts/inspect-report.ts tests/node/report_client.test.ts",
+    "inspect": "node --experimental-strip-types scripts/inspect-report.ts",
     "loc": "node scripts/check-loc.mjs"
   },
   "engines": {
