@@ -112,7 +112,7 @@ export type DemandUpdateReport = {
 };
 
 export type OmenReport = {
-  lab: string;
+  protocol: string;
   scenario: string;
   network_id: string;
   clock: number;
@@ -207,7 +207,7 @@ export function assertDigest(value: unknown): void {
 }
 
 export function assertCommon(report: OmenReport, scenario: string): void {
-  assert.equal(report.lab, "OmenDTL");
+  assert.equal(report.protocol, "OmenDTL");
   assert.equal(report.scenario, scenario);
   assert.equal(report.network_id, "omen-local-liquidity");
   assertDigest(report.state_digest);
